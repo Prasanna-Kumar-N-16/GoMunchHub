@@ -1,12 +1,18 @@
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.event.ActionEvent;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.Label;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 
 import java.util.Random;
+import javafx.util.Duration;
 
 public class MinesweeperGame extends Application {
     private static final int CELL_SIZE = 30;
@@ -27,6 +33,18 @@ public class MinesweeperGame extends Application {
     private boolean[][] isMine;
     private boolean[][] isRevealed;
 
+
+    private Timeline timer;
+    private int elapsedTimeSeconds;
+    private Label timerLabel;
+
+    private Difficulty updatedDifficulty;
+
+    // Set the time limits in seconds for each difficulty level
+    private static final int BEGINNER_TIME_LIMIT = 60;
+    private static final int INTERMEDIATE_TIME_LIMIT = 180;
+    private static final int ADVANCED_TIME_LIMIT = 660;
+
     @Override
     public void start(Stage primaryStage) {
         primaryStage.setTitle("Minesweeper");
@@ -39,15 +57,55 @@ public class MinesweeperGame extends Application {
             System.exit(0); // Exit the application if the user cancels the dialog
         }
 
+        updatedDifficulty=dialog.getSelectedDifficulty();
         setGameParameters(dialog.getSelectedDifficulty());
 
         GridPane grid = createGameGrid();
         initializeGame();
 
+        timerLabel = new Label("Time: 0 seconds");
+        grid.add(timerLabel, cols, 0);
+
         Scene scene = new Scene(grid);
         primaryStage.setScene(scene);
         primaryStage.show();
+
+        initializeTimer();
     }
+
+     private void initializeTimer() {
+        timer = new Timeline(new KeyFrame(Duration.seconds(1), this::updateTimer));
+        timer.setCycleCount(Timeline.INDEFINITE);
+        elapsedTimeSeconds = 0;
+        timer.play();
+    }
+
+    private void updateTimer(ActionEvent event) {
+        elapsedTimeSeconds++;
+
+        // Check if the time limit has been reached for the current difficulty
+        int timeLimit = getTimeLimit();
+        if (elapsedTimeSeconds >= timeLimit) { 
+            timer.stop();
+            showTimeOverAlert();
+        }
+
+        timerLabel.setText("Time: " + elapsedTimeSeconds + " seconds");
+    }
+
+    private int getTimeLimit() {
+        switch (updatedDifficulty) {
+            case BEGINNER:
+                return BEGINNER_TIME_LIMIT;
+            case INTERMEDIATE:
+                return INTERMEDIATE_TIME_LIMIT;
+            case ADVANCED:
+                return ADVANCED_TIME_LIMIT;
+            default:
+                return 0;
+        }
+    }
+
 
     private GridPane createGameGrid() {
         GridPane grid = new GridPane();
@@ -178,6 +236,16 @@ public class MinesweeperGame extends Application {
         alert.setContentText("You hit a mine! Game over.");
         alert.showAndWait();
         System.exit(0);
+    }
+     private void showTimeOverAlert() {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+            alert.setTitle("Time's Up");
+            alert.setHeaderText("Game Over");
+            alert.setContentText("Your time is up! Game over.");
+            alert.showAndWait();
+            System.exit(0);
+        });
     }
 
     private void checkGameWin() {
