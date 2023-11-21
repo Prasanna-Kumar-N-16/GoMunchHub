@@ -1,4 +1,7 @@
 import javafx.animation.KeyFrame;
+import javafx.animation.PauseTransition;
+import javafx.animation.ScaleTransition;
+import javafx.animation.SequentialTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.application.Platform;
@@ -33,7 +36,6 @@ public class MinesweeperGame extends Application {
     private boolean[][] isMine;
     private boolean[][] isRevealed;
 
-
     private Timeline timer;
     private int elapsedTimeSeconds;
     private Label timerLabel;
@@ -41,7 +43,7 @@ public class MinesweeperGame extends Application {
     private Difficulty updatedDifficulty;
 
     // Set the time limits in seconds for each difficulty level
-    private static final int BEGINNER_TIME_LIMIT = 60;
+    private static final int BEGINNER_TIME_LIMIT = 10;
     private static final int INTERMEDIATE_TIME_LIMIT = 180;
     private static final int ADVANCED_TIME_LIMIT = 660;
 
@@ -57,7 +59,7 @@ public class MinesweeperGame extends Application {
             System.exit(0); // Exit the application if the user cancels the dialog
         }
 
-        updatedDifficulty=dialog.getSelectedDifficulty();
+        updatedDifficulty = dialog.getSelectedDifficulty();
         setGameParameters(dialog.getSelectedDifficulty());
 
         GridPane grid = createGameGrid();
@@ -73,7 +75,7 @@ public class MinesweeperGame extends Application {
         initializeTimer();
     }
 
-     private void initializeTimer() {
+    private void initializeTimer() {
         timer = new Timeline(new KeyFrame(Duration.seconds(1), this::updateTimer));
         timer.setCycleCount(Timeline.INDEFINITE);
         elapsedTimeSeconds = 0;
@@ -85,9 +87,9 @@ public class MinesweeperGame extends Application {
 
         // Check if the time limit has been reached for the current difficulty
         int timeLimit = getTimeLimit();
-        if (elapsedTimeSeconds >= timeLimit) { 
+        if (elapsedTimeSeconds >= timeLimit) {
             timer.stop();
-            showTimeOverAlert();
+            showAlert(false);
         }
 
         timerLabel.setText("Time: " + elapsedTimeSeconds + " seconds");
@@ -106,32 +108,31 @@ public class MinesweeperGame extends Application {
         }
     }
 
-
     private GridPane createGameGrid() {
         GridPane grid = new GridPane();
         grid.setPadding(new Insets(10));
         grid.setHgap(5);
         grid.setVgap(5);
-    
+
         buttons = new Button[rows][cols];
         isMine = new boolean[rows][cols];
         isRevealed = new boolean[rows][cols];
-    
+
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
                 Button button = new Button();
                 button.setMinSize(CELL_SIZE, CELL_SIZE);
-    
+
                 // Create effectively final variables
                 final int finalRow = row;
                 final int finalCol = col;
-    
+
                 button.setOnAction(event -> handleButtonClick(finalRow, finalCol));
                 grid.add(button, col, row);
                 buttons[row][col] = button;
             }
         }
-    
+
         return grid;
     }
 
@@ -175,7 +176,7 @@ public class MinesweeperGame extends Application {
 
     private void handleButtonClick(int row, int col) {
         if (isMine[row][col]) {
-            showGameOverAlert();
+            showAlert(true);
         } else {
             revealCell(row, col);
             checkGameWin();
@@ -229,24 +230,54 @@ public class MinesweeperGame extends Application {
         }
     }
 
-    private void showGameOverAlert() {
+    private void showAlert(boolean isGameOver) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Game Over");
-        alert.setHeaderText("Game Over");
-        alert.setContentText("You hit a mine! Game over.");
-        alert.showAndWait();
-        System.exit(0);
-    }
-     private void showTimeOverAlert() {
-        Platform.runLater(() -> {
-            Alert alert = new Alert(Alert.AlertType.INFORMATION);
+    
+        if (isGameOver) {
+            alert.setTitle("Game Over");
+            alert.setHeaderText("Game Over");
+            alert.setContentText("You hit a mine! Game over.");
+        } else {
             alert.setTitle("Time's Up");
             alert.setHeaderText("Game Over");
             alert.setContentText("Your time is up! Game over.");
-            alert.showAndWait();
-            System.exit(0);
+        }
+    
+        // Create a sequential transition for the explosion
+        SequentialTransition explosionTransition = new SequentialTransition();
+    
+        // Play explosion animation for mine buttons one after another
+        for (int row = 0; row < rows; row++) {
+            for (int col = 0; col < cols; col++) {
+                if (isMine[row][col]) {
+                    ScaleTransition scaleIn = new ScaleTransition(Duration.millis(200), buttons[row][col]);
+                    scaleIn.setToX(1.5);
+                    scaleIn.setToY(1.5);
+    
+                    ScaleTransition scaleOut = new ScaleTransition(Duration.millis(200), buttons[row][col]);
+                    scaleOut.setToX(1.0);
+                    scaleOut.setToY(1.0);
+    
+                    SequentialTransition mineExplosion = new SequentialTransition(scaleIn, scaleOut);
+                    explosionTransition.getChildren().add(mineExplosion);
+                }
+            }
+        }
+    
+        // Introduce a pause before showing the game-over alert
+        PauseTransition pause = new PauseTransition(Duration.seconds(1.5)); // Adjust the duration as needed
+        pause.setOnFinished(event -> {
+            explosionTransition.setOnFinished(e -> {
+                Platform.runLater(() -> {
+                    alert.showAndWait();
+                    System.exit(0);
+                });
+            });
+            explosionTransition.play(); // Start the explosion animation
         });
-    }
+    
+        pause.play();
+    }    
 
     private void checkGameWin() {
         int unrevealedCells = 0;
