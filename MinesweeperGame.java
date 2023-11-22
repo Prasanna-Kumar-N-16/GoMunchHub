@@ -20,7 +20,7 @@ import java.util.Random;
 import javafx.util.Duration;
 
 public class MinesweeperGame extends Application {
-    private static final int CELL_SIZE = 30;
+    private static final int CELL_SIZE = 32;
     private static final int BEGINNER_ROWS = 6;
     private static final int BEGINNER_COLS = 9;
     private static final int BEGINNER_MINES = 11;
@@ -290,9 +290,13 @@ public class MinesweeperGame extends Application {
         // Cover the mines with an "X" flag
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                if (isMine[row][col]) {
+                if(!isMine[row][col] && buttons[row][col].getText().equals("F")){
+                     // Mark cells with a red "X" where the player marked a flag but there is no mine
                     buttons[row][col].setText("X");
-                }
+                    buttons[row][col].setStyle("-fx-text-fill: red"); // Set text color to red
+                }else if (isMine[row][col] && !buttons[row][col].getText().equals("F")) {
+                    buttons[row][col].setText("X");
+                } 
             }
         }
 
@@ -302,7 +306,7 @@ public class MinesweeperGame extends Application {
         // Play explosion animation for mine buttons one after another
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                if (isMine[row][col]) {
+                if (isMine[row][col] && !buttons[row][col].getText().equals("F")) {
                     ScaleTransition scaleIn = new ScaleTransition(Duration.millis(200), buttons[row][col]);
                     scaleIn.setToX(1.5);
                     scaleIn.setToY(1.5);
