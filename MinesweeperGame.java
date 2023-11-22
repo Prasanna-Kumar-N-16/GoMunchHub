@@ -10,12 +10,14 @@ import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
+import javafx.scene.control.ButtonBar;
+import javafx.scene.control.ButtonType;
 import javafx.scene.control.Label;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.stage.Stage;
 import java.awt.Toolkit;
-
+import java.util.Optional;
 import java.util.Random;
 import javafx.util.Duration;
 
@@ -53,8 +55,12 @@ public class MinesweeperGame extends Application {
     private static final int INTERMEDIATE_TIME_LIMIT = 180;
     private static final int ADVANCED_TIME_LIMIT = 660;
 
+    private Stage primaryStage;
+
     @Override
     public void start(Stage primaryStage) {
+        this.primaryStage = primaryStage; // Store the reference to the primary stage
+
         primaryStage.setTitle("Minesweeper");
 
         // Display difficulty selection dialog
@@ -284,19 +290,20 @@ public class MinesweeperGame extends Application {
             alert.setContentText("Your time is up! Game over.");
         }
 
+        timer.stop();
+
         Toolkit.getDefaultToolkit().beep();
- 
 
         // Cover the mines with an "X" flag
         for (int row = 0; row < rows; row++) {
             for (int col = 0; col < cols; col++) {
-                if(!isMine[row][col] && buttons[row][col].getText().equals("F")){
-                     // Mark cells with a red "X" where the player marked a flag but there is no mine
+                if (!isMine[row][col] && buttons[row][col].getText().equals("F")) {
+                    // Mark cells with a red "X" where the player marked a flag but there is no mine
                     buttons[row][col].setText("X");
                     buttons[row][col].setStyle("-fx-text-fill: red"); // Set text color to red
-                }else if (isMine[row][col] && !buttons[row][col].getText().equals("F")) {
+                } else if (isMine[row][col] && !buttons[row][col].getText().equals("F")) {
                     buttons[row][col].setText("X");
-                } 
+                }
             }
         }
 
@@ -327,13 +334,32 @@ public class MinesweeperGame extends Application {
             explosionTransition.setOnFinished(e -> {
                 Platform.runLater(() -> {
                     alert.showAndWait();
-                    System.exit(0);
+                    Alert restartAlert = new Alert(Alert.AlertType.CONFIRMATION);
+                    restartAlert.setTitle("Game Over");
+                    restartAlert.setHeaderText("Game Over");
+                    restartAlert.setContentText("Do you want to restart the game?");
+                    ButtonType restartButton = new ButtonType("Restart");
+                    ButtonType exitButton = new ButtonType("Exit", ButtonBar.ButtonData.CANCEL_CLOSE);
+                    restartAlert.getButtonTypes().setAll(restartButton, exitButton);
+
+                    Optional<ButtonType> result = restartAlert.showAndWait();
+                    if (result.isPresent() && result.get() == restartButton) {
+                        restartGame();
+                    } else {
+                        Platform.exit(); // Gracefully exit the JavaFX application
+                    }
                 });
             });
             explosionTransition.play(); // Start the explosion animation
         });
 
         pause.play();
+    }
+
+    private void restartGame() {
+        primaryStage.close(); // Close the previous window
+        Stage primaryStage = new Stage();
+        start(primaryStage);
     }
 
     private void checkGameWin() {
